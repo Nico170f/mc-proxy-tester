@@ -17,8 +17,5 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
   },
-  "include": [
-    //"app.ts"
-    "src/backend"
-  ]
+  "include": ["src/backend"]
 }

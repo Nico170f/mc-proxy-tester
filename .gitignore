@@ -177,3 +177,8 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+
+accounts.txt
+proxies.txt
+*.txt
