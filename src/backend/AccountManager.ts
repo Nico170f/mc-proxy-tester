@@ -4,6 +4,7 @@ import * as fs from 'fs';
 export interface Account {
   email: string;
   password: string;
+  busy: boolean;
 }
 
 export class AccountManager {
@@ -42,6 +43,7 @@ export class AccountManager {
       const account: Account = {
         email: parts[0],
         password: parts[1],
+        busy: false,
       };
 
       this.accounts.push(account);

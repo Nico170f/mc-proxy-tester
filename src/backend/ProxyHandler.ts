@@ -31,19 +31,27 @@ export class ProxyHandler {
     const lines = data.split('\n');
 
     for (let i = 0; i < lines.length; i++) {
-      const element = lines[i];
-      const parts = element.split('@');
-
-      if (parts.length !== 2) {
-        console.log('Invalid proxy format:', element);
+      const element = lines[i].trim();
+      if (!element.length) {
         continue;
       }
 
-      const hostInfo = parts[0].split(':');
+      const parts = element.split('@');
+
+      // console.log(parts);
+      if (parts.length !== 2) {
+        console.log('Invalid proxy format1:', element);
+        continue;
+      }
+
+      const hostInfo = parts[0].split(':'); //These are flipped
       const authInfo = parts[1].split(':');
 
+      // console.log('hostInfo:', hostInfo);
+      // console.log('authInfo:', authInfo);
+
       if (hostInfo.length !== 2 || authInfo.length !== 2) {
-        console.log('Invalid proxy format:', element);
+        console.log('Invalid proxy format2:', element);
         continue;
       }
 

@@ -28,6 +28,13 @@ export class MinecraftBot {
 
   public async start(): Promise<boolean> {
     // console.log('i am using: ', this.proxy);
+    console.log(
+      'Starting bot with account:',
+      this.account.email,
+      'and proxy:',
+      this.proxy.host
+    );
+
     return await new Promise((resolve) => {
       try {
         this.create();
@@ -82,9 +89,17 @@ export class MinecraftBot {
       if (this.bot) {
         // this.bot.removeAllListeners();
         this.bot.end();
+        this.bot = null;
+        console.log('Bot ended');
+      } else {
+        return;
       }
 
-      resolve(result);
+      setTimeout(() => {
+        resolve(result);
+      }, 1000);
+
+      // resolve(result);
     };
 
     this.bot!.on('spawn', () => {
@@ -100,6 +115,7 @@ export class MinecraftBot {
     });
 
     this.bot!.on('kicked', (reason) => {
+      console.log('Kicked:', reason);
       finalResolve(false);
     });
 
@@ -169,6 +185,8 @@ export class MinecraftBot {
       userId: this.proxy.username,
       password: this.proxy.password,
     };
+
+    // console.log('Connecting to SOCKS proxy:', proxyOptions);
 
     const connectionTimeout = setTimeout(() => {
       const timeoutError = new Error('SOCKS proxy connection timeout');

@@ -2,8 +2,8 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import * as path from 'path';
 import { ProxyHandler } from './ProxyHandler';
 import { MinecraftBot } from './MinecraftBot';
-import { AccountManager } from './AccountManager';
-import { ProxyChecker } from './ProxyChecker';
+import { Account, AccountManager } from './AccountManager';
+import { Proxy } from './ProxyHandler';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -42,32 +42,6 @@ ipcMain.handle('test-connection', async (event, arg) => {
   return { success: true, message: 'Response from Electron main process' };
 });
 
-async function Test() {
-  const test: ProxyChecker = new ProxyChecker();
-
-  const accountHandler: AccountManager = new AccountManager();
-  accountHandler.loadAccounts();
-
-  const proxyHandler: ProxyHandler = new ProxyHandler();
-  proxyHandler.loadProxies();
-
-  // console.log(proxyHandler.proxies);
-
-  const minecraftBot: MinecraftBot = new MinecraftBot(
-    accountHandler.accounts[0],
-    proxyHandler.proxies[0],
-    '65.108.242.46.66',
-    2006
-  );
-
-  try {
-    const result: boolean = await minecraftBot.start();
-    console.log('result: ', result);
-  } catch (error) {
-    console.error('Error starting bot:', error);
-  }
-}
-
 app.on('ready', createWindow);
 
 app.on('window-all-closed', () => {
@@ -81,3 +55,153 @@ app.on('activate', () => {
     createWindow();
   }
 });
+
+const startTime = Date.now();
+
+async function Test() {
+  const tester: Tester = new Tester();
+  tester.Start();
+}
+
+class Tester {
+  accountHandler: AccountManager = new AccountManager();
+  proxyHandler: ProxyHandler = new ProxyHandler();
+
+  availableAccounts: Account[] = [];
+  availableProxies: Proxy[] = [];
+
+  servers: { serverIp: string; port: number }[] = [
+    {
+      serverIp: '65.108.242.46',
+      port: 2006,
+    },
+    // {
+    //   serverIp: 'play.minecadia.com',
+    //   port: 25565,
+    // },
+    // {
+    //   serverIp: 'donutsmp.net',
+    //   port: 25565,
+    // },
+  ];
+
+  constructor() {
+    this.accountHandler.loadAccounts();
+    this.availableAccounts = this.accountHandler.accounts;
+
+    this.proxyHandler.loadProxies();
+    this.availableProxies = this.proxyHandler.proxies;
+  }
+
+  public async Start(): Promise<void> {
+    if (
+      this.availableAccounts.length === 0 ||
+      this.availableProxies.length === 0
+    ) {
+      const endTime = Date.now();
+      const duration = (endTime - startTime) / 1000;
+      console.log('Test completed in', duration, 'seconds');
+      console.log('No available proxies or accounts to test');
+      return;
+    }
+
+    for (let i = 0; i < this.availableAccounts.length; i++) {
+      const account = this.availableAccounts.shift();
+      if (!account) {
+        console.log('No available accounts');
+        break;
+      }
+
+      const proxy = this.availableProxies.pop();
+      if (!proxy) {
+        console.log('No available proxies');
+        break;
+      }
+
+      this.Test(proxy, account);
+    }
+  }
+
+  public async Test(proxy: Proxy, account: Account): Promise<void> {
+    // const proxy: Proxy | undefined = this.availableProxies.pop();
+    // if (!proxy) {
+    //   console.log('No available proxies');
+    //   return;
+    // }
+    // this.removeProxyFromAvailable(proxy);
+
+    // const account: Account | undefined = this.availableAccounts.pop();
+    // if (!account) {
+    //   console.log('No available accounts');
+    //   return;
+    // }
+
+    const tasks: Promise<boolean>[] = [];
+    const bots: MinecraftBot[] = [];
+
+    for (let i = 0; i < this.servers.length; i++) {
+      const server = this.servers[i];
+
+      const minecraftBot: MinecraftBot = new MinecraftBot(
+        account,
+        proxy,
+        server.serverIp,
+        server.port
+      );
+
+      bots.push(minecraftBot);
+
+      const task = minecraftBot
+        .start()
+        .then((result) => {
+          console.log(
+            `Server ${server.serverIp}:${server.port} test completed: ${
+              result ? 'Success' : 'Failed'
+            }`
+          );
+          return result;
+        })
+        .catch((err) => {
+          console.error(
+            `Error testing server ${server.serverIp}:${server.port}:`,
+            err
+          );
+          return false;
+        });
+
+      tasks.push(task);
+    }
+
+    const results = await Promise.allSettled(tasks);
+    const successCount = results.filter(
+      (r) => r.status === 'fulfilled' && r.value === true
+    ).length;
+
+    console.log(
+      `Proxy ${proxy.host}:${proxy.port} - ${successCount}/${tasks.length} successful connections`
+    );
+
+    this.addAccountToAvailable(account);
+    this.Start();
+  }
+
+  private removeAccountFromAvailable(account: Account): void {
+    this.availableAccounts = this.availableAccounts.filter(
+      (acc) => acc.email !== account.email
+    );
+  }
+
+  private removeProxyFromAvailable(proxy: Proxy): void {
+    this.availableProxies = this.availableProxies.filter(
+      (p) => p.host !== proxy.host
+    );
+  }
+
+  private addAccountToAvailable(account: Account): void {
+    this.availableAccounts.push(account);
+  }
+
+  private addProxyToAvailable(proxy: Proxy): void {
+    this.availableProxies.push(proxy);
+  }
+}
