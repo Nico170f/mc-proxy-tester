@@ -90,7 +90,7 @@ export class MinecraftBot {
         // this.bot.removeAllListeners();
         this.bot.end();
         this.bot = null;
-        console.log('Bot ended');
+        console.log('Bot ended', this.account.email);
       } else {
         return;
       }
@@ -115,12 +115,13 @@ export class MinecraftBot {
     });
 
     this.bot!.on('kicked', (reason) => {
-      console.log('Kicked:', reason);
+      //console.log('Kicked:', reason);
       finalResolve(false);
     });
 
     this.bot!.on('error', (err) => {
       try {
+        console.error('Bot error:', err.message);
         finalResolve(false);
       } catch (error) {}
     });

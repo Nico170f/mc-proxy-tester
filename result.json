@@ -1,0 +1,68 @@
+{
+  "45.135.38.20:59101": {
+    "successAmount": 1,
+    "totalAmount": 3,
+    "successServers": [
+      "65.108.242.46:2006"
+    ],
+    "failedServers": [
+      "donutsmp.net:25565",
+      "play.minecadia.com:25565"
+    ]
+  },
+  "176.116.228.236:59101": {
+    "successAmount": 1,
+    "totalAmount": 3,
+    "successServers": [
+      "65.108.242.46:2006"
+    ],
+    "failedServers": [
+      "donutsmp.net:25565",
+      "play.minecadia.com:25565"
+    ]
+  },
+  "23.230.6.179:59101": {
+    "successAmount": 2,
+    "totalAmount": 3,
+    "successServers": [
+      "65.108.242.46:2006",
+      "donutsmp.net:25565"
+    ],
+    "failedServers": [
+      "play.minecadia.com:25565"
+    ]
+  },
+  "176.116.228.145:59101": {
+    "successAmount": 1,
+    "totalAmount": 3,
+    "successServers": [
+      "65.108.242.46:2006"
+    ],
+    "failedServers": [
+      "donutsmp.net:25565",
+      "play.minecadia.com:25565"
+    ]
+  },
+  "77.71.99.200:59101": {
+    "successAmount": 2,
+    "totalAmount": 3,
+    "successServers": [
+      "65.108.242.46:2006",
+      "play.minecadia.com:25565"
+    ],
+    "failedServers": [
+      "donutsmp.net:25565"
+    ]
+  },
+  "77.71.98.17:59101": {
+    "successAmount": 2,
+    "totalAmount": 3,
+    "successServers": [
+      "65.108.242.46:2006",
+      "donutsmp.net:25565"
+    ],
+    "failedServers": [
+      "play.minecadia.com:25565"
+    ]
+  }
+}

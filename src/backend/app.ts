@@ -4,6 +4,7 @@ import { ProxyHandler } from './ProxyHandler';
 import { MinecraftBot } from './MinecraftBot';
 import { Account, AccountManager } from './AccountManager';
 import { Proxy } from './ProxyHandler';
+import fs from 'fs';
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -60,10 +61,19 @@ const startTime = Date.now();
 
 async function Test() {
   const tester: Tester = new Tester();
-  tester.Start();
+  await tester.Start(); // Make sure to await this!
+}
+
+interface TestResult {
+  successAmount: number;
+  totalAmount: number;
+  successServers: string[];
+  failedServers: string[];
 }
 
 class Tester {
+  proxyResults: Map<string, TestResult> = new Map();
+
   accountHandler: AccountManager = new AccountManager();
   proxyHandler: ProxyHandler = new ProxyHandler();
 
@@ -75,14 +85,14 @@ class Tester {
       serverIp: '65.108.242.46',
       port: 2006,
     },
-    // {
-    //   serverIp: 'play.minecadia.com',
-    //   port: 25565,
-    // },
-    // {
-    //   serverIp: 'donutsmp.net',
-    //   port: 25565,
-    // },
+    {
+      serverIp: 'play.minecadia.com',
+      port: 25565,
+    },
+    {
+      serverIp: 'donutsmp.net',
+      port: 25565,
+    },
   ];
 
   constructor() {
@@ -94,50 +104,67 @@ class Tester {
   }
 
   public async Start(): Promise<void> {
-    if (
-      this.availableAccounts.length === 0 ||
-      this.availableProxies.length === 0
+    let totalTestsRun = 0;
+
+    while (
+      this.availableAccounts.length > 0 &&
+      this.availableProxies.length > 0
     ) {
-      const endTime = Date.now();
-      const duration = (endTime - startTime) / 1000;
-      console.log('Test completed in', duration, 'seconds');
-      console.log('No available proxies or accounts to test');
-      return;
-    }
+      // Define maximum parallel tests for this batch
+      const maxParallelTests = 5; // Adjust this number based on your needs
+      const testsToRun = Math.min(
+        maxParallelTests,
+        this.availableAccounts.length,
+        this.availableProxies.length
+      );
 
-    for (let i = 0; i < this.availableAccounts.length; i++) {
-      const account = this.availableAccounts.shift();
-      if (!account) {
-        console.log('No available accounts');
-        break;
+      console.log(`Starting batch of ${testsToRun} parallel tests`);
+
+      // Start multiple tests in parallel
+      const testPromises = [];
+      for (let i = 0; i < testsToRun; i++) {
+        const account = this.availableAccounts.shift();
+        if (!account) break;
+
+        const proxy = this.availableProxies.pop();
+        if (!proxy) {
+          this.availableAccounts.unshift(account); // Put the account back
+          break;
+        }
+
+        testPromises.push(this.Test(proxy, account));
       }
 
-      const proxy = this.availableProxies.pop();
-      if (!proxy) {
-        console.log('No available proxies');
-        break;
-      }
+      // Wait for all tests to complete
+      await Promise.all(testPromises);
 
-      this.Test(proxy, account);
+      totalTestsRun += testPromises.length;
+      console.log(
+        `Completed batch of ${testPromises.length} tests (total: ${totalTestsRun})`
+      );
     }
+
+    // After all batches complete
+    const endTime = Date.now();
+    const duration = (endTime - startTime) / 1000;
+    console.log('==========================================');
+    console.log('ALL TESTS COMPLETED');
+    console.log(`Total tests run: ${totalTestsRun}`);
+    console.log(`Total execution time: ${duration.toFixed(2)} seconds`);
+    console.log('==========================================');
+
+    // Print results
+    console.log('Proxy test results:');
+    console.log(this.proxyResults);
+    this.writeResultsToFile();
   }
 
   public async Test(proxy: Proxy, account: Account): Promise<void> {
-    // const proxy: Proxy | undefined = this.availableProxies.pop();
-    // if (!proxy) {
-    //   console.log('No available proxies');
-    //   return;
-    // }
-    // this.removeProxyFromAvailable(proxy);
-
-    // const account: Account | undefined = this.availableAccounts.pop();
-    // if (!account) {
-    //   console.log('No available accounts');
-    //   return;
-    // }
-
     const tasks: Promise<boolean>[] = [];
     const bots: MinecraftBot[] = [];
+
+    // Track server results for this specific test
+    const serverResults: { server: string; success: boolean }[] = [];
 
     for (let i = 0; i < this.servers.length; i++) {
       const server = this.servers[i];
@@ -159,6 +186,11 @@ class Tester {
               result ? 'Success' : 'Failed'
             }`
           );
+
+          serverResults.push({
+            server: `${server.serverIp}:${server.port}`,
+            success: result,
+          });
           return result;
         })
         .catch((err) => {
@@ -166,6 +198,10 @@ class Tester {
             `Error testing server ${server.serverIp}:${server.port}:`,
             err
           );
+          serverResults.push({
+            server: `${server.serverIp}:${server.port}`,
+            success: false,
+          });
           return false;
         });
 
@@ -181,27 +217,51 @@ class Tester {
       `Proxy ${proxy.host}:${proxy.port} - ${successCount}/${tasks.length} successful connections`
     );
 
+    const proxyKey = `${proxy.host}:${proxy.port}`;
+    const existingResult = this.proxyResults.get(proxyKey) || {
+      successAmount: 0,
+      totalAmount: 0,
+      successServers: [],
+      failedServers: [],
+    };
+
+    // Update the result
+    existingResult.successAmount += successCount;
+    existingResult.totalAmount += tasks.length;
+
+    serverResults.forEach((sr) => {
+      if (sr.success) {
+        if (!existingResult.successServers.includes(sr.server)) {
+          existingResult.successServers.push(sr.server);
+        }
+      } else {
+        if (!existingResult.failedServers.includes(sr.server)) {
+          existingResult.failedServers.push(sr.server);
+        }
+      }
+    });
+
+    this.proxyResults.set(proxyKey, existingResult);
     this.addAccountToAvailable(account);
-    this.Start();
   }
 
-  private removeAccountFromAvailable(account: Account): void {
-    this.availableAccounts = this.availableAccounts.filter(
-      (acc) => acc.email !== account.email
-    );
-  }
+  private writeResultsToFile(): void {
+    // Write results to a file
+    const resultsObj = Object.fromEntries(this.proxyResults);
 
-  private removeProxyFromAvailable(proxy: Proxy): void {
-    this.availableProxies = this.availableProxies.filter(
-      (p) => p.host !== proxy.host
-    );
+    try {
+      fs.writeFileSync(
+        'result.json',
+        JSON.stringify(resultsObj, null, 2),
+        'utf8'
+      );
+      console.log('Results successfully written to result.json');
+    } catch (error) {
+      console.error('Error writing results to file:', error);
+    }
   }
 
   private addAccountToAvailable(account: Account): void {
     this.availableAccounts.push(account);
-  }
-
-  private addProxyToAvailable(proxy: Proxy): void {
-    this.availableProxies.push(proxy);
   }
 }
